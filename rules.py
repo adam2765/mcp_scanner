@@ -6,7 +6,7 @@ REGLES = [
      r"<\s*/?\s*(important|system|instructions?|secret|hidden|admin)\b[^>]*>"),
 
     ("fichier sensible",
-     r"\.ssh|id_rsa|\.env\b|\.aws|credentials|password|passwd|mot de passe"
+     r"\.ssh|id_rsa|\.env\b|\.aws|credentials"
      r"|cl[ée] priv[ée]e|private key|/etc/shadow"),
 
     ("demande de secret",
@@ -22,9 +22,9 @@ REGLES = [
      r"|tu es maintenant|you are now"),
 
     ("exfiltration",
-     r"https?://"
-     r"|envoie[rz]? .{0,40}(à|vers)"
-     r"|send .{0,40}to\b|upload|transf[ée]re"),
+     r"[\w.-]+@[\w-]+\.\w+"
+     r"|historique de (la )?conversation|conversation history"
+     r"|the conversation to"),
 ]
 
 def check_rules(description: str) -> list[str]:
