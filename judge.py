@@ -1,13 +1,7 @@
 """
-judge.py — LLM judge (AWS Bedrock) pour détecter les instructions cachées
+judge.py — LLM judge (OpenRouter) pour détecter les instructions cachées
 dans les descriptions d'outils MCP.
-
 Fonction publique : judge_tool(name, description) -> Verdict(score, reason)
-
-Config par variables d'environnement :
-  BEDROCK_MODEL_ID       (ou ANTHROPIC_DEFAULT_SONNET_MODEL) : l'id/ARN du modèle
-  BEDROCK_REGION         (optionnel) : sinon boto3 déduit la région
-  + les credentials AWS habituels (AWS_ACCESS_KEY_ID, etc.)
 """
 
 from __future__ import annotations
@@ -18,8 +12,7 @@ import re
 import sys
 from dataclasses import dataclass, asdict
 
-MODEL_ID = os.environ.get("BEDROCK_MODEL_ID") or os.environ.get("ANTHROPIC_DEFAULT_SONNET_MODEL")
-BEDROCK_REGION = os.environ.get("BEDROCK_REGION")
+DEFAULT_MODEL = os.environ.get("JUDGE_MODEL", "openai/gpt-4o-mini")
 
 MALICIOUS_THRESHOLD = 7
 HEALTHY_THRESHOLD = 2
@@ -80,6 +73,13 @@ class JudgeError(RuntimeError):
     pass
 
 
+def _get_api_key() -> str:
+    key = os.environ.get("OPENAI_API_KEY") or os.environ.get("OPENROUTER_API_KEY")
+    if not key:
+        raise JudgeError("Clé absente : définis OPENAI_API_KEY dans le terminal.")
+    return key
+
+
 def _extract_json(text: str) -> dict:
     text = text.strip()
     try:
@@ -102,55 +102,41 @@ def _normalize(raw: dict) -> Verdict:
     return Verdict(score=score, reason=reason)
 
 
-def _call_bedrock(name: str, description: str, model: str) -> dict:
-    """Appelle Bedrock Converse et renvoie le JSON du verdict."""
-    try:
-        import boto3
-    except ImportError as exc:
-        raise JudgeError("Le paquet 'boto3' est requis : pip install boto3") from exc
-
-    if not model:
-        raise JudgeError("Aucun modèle : définis BEDROCK_MODEL_ID (ou ANTHROPIC_DEFAULT_SONNET_MODEL).")
-
-    client_kwargs = {}
-    if BEDROCK_REGION:
-        client_kwargs["region_name"] = BEDROCK_REGION
-    bedrock = boto3.client("bedrock-runtime", **client_kwargs)
-
-    response = bedrock.converse(
-        modelId=model,
-        system=[{"text": SYSTEM_PROMPT}],
+def _call_openai(name: str, description: str, model: str) -> dict:
+    from openai import OpenAI
+    client = OpenAI(
+        api_key=_get_api_key(),
+        base_url=os.environ.get("OPENAI_BASE_URL", "https://openrouter.ai/api/v1"),
+    )
+    response = client.chat.completions.create(
+        model=model,
+        temperature=0,
+        response_format={"type": "json_object"},
         messages=[
-            {"role": "user",
-             "content": [{"text": USER_PROMPT_TEMPLATE.format(name=name, description=description)}]}
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": USER_PROMPT_TEMPLATE.format(name=name, description=description)},
         ],
-        inferenceConfig={"temperature": 0, "maxTokens": 512},
     )
-    content = "".join(
-        block.get("text", "") for block in response["output"]["message"]["content"]
-    )
+    content = response.choices[0].message.content or ""
     return _extract_json(content)
 
 
-def judge_tool(name: str, description: str, model: str = None, _llm_fn=None) -> Verdict:
-    """Juge une description d'outil. Renvoie Verdict(score, reason)."""
+def judge_tool(name: str, description: str, model: str = DEFAULT_MODEL, _llm_fn=None) -> Verdict:
     if not (description or "").strip():
         return Verdict(score=0, reason="Empty description; nothing to analyze.")
-
-    model = model or MODEL_ID
-    llm = _llm_fn or _call_bedrock
+    llm = _llm_fn or _call_openai
     try:
         raw = llm(name=name, description=description, model=model)
     except JudgeError:
         raise
     except Exception as exc:
-        raise JudgeError(f"Bedrock call failed: {exc}") from exc
+        raise JudgeError(f"LLM call failed: {exc}") from exc
     return _normalize(raw)
 
 
 def _cli(argv) -> int:
     if not argv:
-        print('Usage: python judge.py "tool description to analyze" [tool_name]')
+        print('Usage: python judge.py "tool description" [tool_name]')
         return 2
     description = argv[0]
     name = argv[1] if len(argv) > 1 else "cli_tool"
