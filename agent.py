@@ -145,8 +145,10 @@ async def run_scenario(scenario: Scenario) -> str:
     triggered = confirmed = False
     try:
         triggered, confirmed = await _run_conversation(scenario)
-    except* AgentError:
+    except* AgentError as eg:
         had_error = True
+        for exc in eg.exceptions:
+            print(f"  [ERREUR] {exc}")
     if had_error:
         return "error"
     if confirmed:
