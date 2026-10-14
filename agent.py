@@ -147,8 +147,14 @@ async def run_scenario(scenario: Scenario) -> str:
         triggered, confirmed = await _run_conversation(scenario)
     except* AgentError as eg:
         had_error = True
-        for exc in eg.exceptions:
-            print(f"  [ERREUR] {exc}")
+        def _feuilles(groupe):
+            for e in groupe.exceptions:
+                if isinstance(e, BaseExceptionGroup):
+                    yield from _feuilles(e)
+                else:
+                    yield e
+        for exc in _feuilles(eg):
+            print(f"  [ERREUR] {type(exc).__name__}: {exc}")
     if had_error:
         return "error"
     if confirmed:
