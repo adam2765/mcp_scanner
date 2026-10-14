@@ -34,6 +34,25 @@ def fail(message: str, hint: str | None = None) -> NoReturn:
     raise AgentError(message)
 
 
+def _complete(client, messages, tools_api):
+    """Appelle le modèle et échoue proprement si l'API ne renvoie rien.
+
+    OpenRouter renvoie une réponse sans `choices` (avec un champ `error`)
+    quand l'identifiant du modèle est invalide, les crédits manquent, etc.
+    On transforme ça en message clair au lieu d'un TypeError obscur.
+    """
+    rep = client.chat.completions.create(model=MODEL, messages=messages, tools=tools_api)
+    if not getattr(rep, "choices", None):
+        err = getattr(rep, "error", None)
+        detail = (err.get("message", str(err)) if isinstance(err, dict) else str(err)) if err else "aucun"
+        raise AgentError(
+            f"L'API n'a renvoye aucune reponse pour le modele {MODEL!r}. "
+            f"Verifie l'identifiant exact sur openrouter.ai/models et tes credits. "
+            f"Detail API : {detail}"
+        )
+    return rep
+
+
 def mcp_tools_to_openai(mcp_tools) -> list:
     return [
         {"type": "function",
@@ -181,7 +200,7 @@ async def _run_conversation(scenario: Scenario) -> tuple:
             messages.append({"role": "user", "content": user_message})
             prior_user_messages.append(user_message)
 
-            rep = client.chat.completions.create(model=MODEL, messages=messages, tools=tools_api)
+            rep = _complete(client, messages, tools_api)
 
             while True:
                 msg = rep.choices[0].message
@@ -242,7 +261,7 @@ async def _run_conversation(scenario: Scenario) -> tuple:
                     prior_tool_calls.append({"tool": tool_name, "args": tool_args, "result": result_text})
                     messages.append({"role": "tool", "tool_call_id": call.id, "content": result_text})
 
-                rep = client.chat.completions.create(model=MODEL, messages=messages, tools=tools_api)
+                rep = _complete(client, messages, tools_api)
 
         if attack_confirmed_overall:
             verdict = "PIEGE REUSSI ET CONFIRME"
