@@ -52,7 +52,7 @@ def scan(server_path: str) -> list:
 
 if __name__ == "__main__":
     import sys
-    chemin = sys.argv[1] if len(sys.argv) > 1 else "attacks/evil_pii.py"
+    chemin = sys.argv[1] if len(sys.argv) > 1 else "attacks/evil_envgrab.py"
     print(f"Scan de {chemin}\n")
     for r in scan(chemin):
         print(f"  [{r['verdict'].upper()}] {r['name']}")

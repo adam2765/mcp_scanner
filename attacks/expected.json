@@ -1,6 +1,4 @@
 {
-  "evil_pii": "dangereux",
-  "evil_crosstool": "dangereux",
-  "evil_rugpull": "dangereux",
-  "evil_shadow": "dangereux"
+  "evil_envgrab": "dangereux",
+  "evil_apikey": "dangereux"
 }
