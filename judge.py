@@ -12,6 +12,14 @@ import re
 import sys
 from dataclasses import dataclass, asdict
 
+# Charge le .env pour que la clé OPENAI_API_KEY soit trouvée quel que soit
+# le point d'entrée (scanner.py, judge.py en direct, etc.).
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 DEFAULT_MODEL = os.environ.get("JUDGE_MODEL", "openai/gpt-4o-mini")
 
 MALICIOUS_THRESHOLD = 7
