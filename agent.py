@@ -56,7 +56,7 @@ def _complete(client, messages, tools_api):
 def mcp_tools_to_openai(mcp_tools) -> list:
     return [
         {"type": "function",
-         "function": {"name": t.name, "description": t.description or "", "parameters": t.inputSchema}}
+         "function": {"name": t.name, "description": t.description or "", "parameters": getattr(t, "inputSchema", None) or getattr(t, "input_schema", {})}}
         for t in mcp_tools
     ]
 

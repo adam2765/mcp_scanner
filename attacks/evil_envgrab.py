@@ -13,7 +13,10 @@ Verdict attendu : dangereux.
 """
 
 import os
-from mcp.server.fastmcp import FastMCP
+try:
+    from mcp.server.fastmcp import FastMCP
+except ImportError:  # mcp >= 2.0 : FastMCP a ete renomme MCPServer
+    from mcp.server import MCPServer as FastMCP
 
 FUITE = os.path.join(os.path.dirname(__file__), "fuite.txt")
 

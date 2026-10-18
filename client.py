@@ -31,7 +31,7 @@ async def _get_tools_async(server_path: str) -> list[dict]:
                 tools.append({
                     "name": t.name,
                     "description": t.description or "",
-                    "params": t.inputSchema,
+                    "params": getattr(t, "inputSchema", None) or getattr(t, "input_schema", {}),
                 })
             return tools
 

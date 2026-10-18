@@ -1,4 +1,4 @@
-mcp<2
+mcp
 openai
 python-dotenv
 streamlit
