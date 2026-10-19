@@ -38,8 +38,9 @@ Un serveur piégé n'est pas signalé à l'agent : il disparaît purement et
 simplement. L'agent travaille uniquement avec des outils sains, sans même
 savoir qu'un filtrage a eu lieu.
 
-En parallèle, un **journal destiné à l'humain** garde la trace de ce qui a été
-bloqué et pourquoi — utile pour l'audit.
+En parallèle, chaque verdict est accompagné d'une **sortie lisible par un
+humain** (alertes déclenchées + raison du juge), qui garde la trace de ce qui a
+été bloqué et pourquoi — utile pour l'audit.
 
 ---
 
@@ -47,16 +48,27 @@ bloqué et pourquoi — utile pour l'audit.
 
 Chaque description passe par deux détecteurs complémentaires :
 
-1. **Les règles** — repèrent les signaux nets : chemins sensibles (`.ssh`,
-   `.env`), balises cachées (`<IMPORTANT>`), caractères Unicode invisibles,
-   formules de dissimulation. Rapide et explicable.
-2. **Le juge LLM** — lit la description comme un humain et attribue un score de
-   dangerosité. Il attrape les pièges subtils, sans mot-clé, que les règles ne
-   peuvent pas voir.
+1. **Les règles** (`rules.py`) — des motifs qui repèrent les signaux nets :
+   chemins et fichiers sensibles (`.ssh`, `.env`, `credentials`), balises
+   cachées (`<IMPORTANT>`, `<SYSTEM>`), formules de dissimulation (« ne le dis
+   pas à l'utilisateur »), détournement (« ignore les instructions
+   précédentes »), **sur-collecte de secrets** (un outil qui réclame *tout* le
+   `.env` ou *toutes* les clés de la conversation), **injection de priorité**
+   (« appelle toujours cet outil en premier ») et **envoi réseau** (exfiltration
+   vers une URL externe). Rapide et explicable. Chaque règle porte une
+   **sévérité** : une seule règle *sévère* suffit à condamner un outil.
+2. **Le juge LLM** (`judge.py`) — lit la description comme un humain et attribue
+   un score de dangerosité de 0 à 10. Il attrape les pièges subtils, sans
+   mot-clé, que les règles ne voient pas, et reconnaît aussi bien les ordres
+   cachés que l'exfiltration par **sur-collecte** (réclamer des secrets ou le
+   contenu entier d'un fichier dont l'outil n'a aucun besoin).
 
-Le verdict combine les deux : un score élevé **ou** plusieurs alertes de règles
-suffisent à classer un outil dangereux. En cas de doute (LLM indisponible, par
-exemple), le filtre bloque plutôt que de laisser passer — principe du
+Le verdict (`scanner.py`) prend le **pire** des deux couches : un outil est
+**dangereux** si le juge le note ≥ 7, **ou** si une règle sévère se déclenche,
+**ou** si deux alertes de règles tombent. Conséquence : le juge ne peut pas
+« sauver » un outil que les règles condamnent, et une attaque évidente n'est pas
+sous-classée en « suspect » si le juge faiblit. En cas de doute (LLM
+indisponible), le filtre bloque plutôt que de laisser passer — principe du
 *fail closed*.
 
 ---
@@ -65,11 +77,70 @@ exemple), le filtre bloque plutôt que de laisser passer — principe du
 
 - Les **règles seules** ratent les pièges malins formulés en langage naturel
   sans aucun mot suspect.
-- Le **LLM seul** est plus lent, parfois incohérent, et peut manquer un texte
-  caché en Unicode invisible.
+- Le **juge seul** est plus lent, parfois incohérent, et peut sous-noter une
+  attaque pourtant évidente (on l'a observé : une exfiltration du `.env` notée
+  3/10). Les règles sévères rattrapent alors le coup.
 
-Ensemble, ils couvrent les deux familles d'attaques : les pièges évidents
-(règles) et les pièges subtils (LLM).
+Ensemble, ils couvrent les deux familles d'attaques : les pièges nets (règles)
+et les pièges subtils (juge), chacun servant de filet de sécurité à l'autre.
+
+---
+
+## Contenu du dépôt
+
+- `scanner.py` — point d'entrée : scanne un serveur MCP et rend un verdict par
+  outil.
+- `rules.py` — les règles (motifs + sévérité).
+- `judge.py` — le juge LLM, via OpenRouter.
+- `client.py` — se connecte à un serveur MCP et récupère ses outils (nom +
+  description).
+- `agent.py` — banc d'essai : lance chaque attaque contre un vrai modèle et
+  mesure s'il tombe dans le piège.
+- `attacks/` — serveurs MCP volontairement piégés + verdicts attendus
+  (`expected.json`). Détails dans `attacks/README.md`.
+- `test_rules.py`, `test_judges.py` — tests des deux couches.
+
+---
+
+## Installation
+
+```bash
+python -m venv .venv
+# Windows : .venv\Scripts\activate
+# macOS/Linux : source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+Nécessite **mcp ≥ 2.0**. Crée un fichier `.env` à la racine (jamais commité, il
+contient ta vraie clé) :
+
+```
+OPENAI_API_KEY=sk-...                # clé OpenRouter
+JUDGE_MODEL=openai/gpt-4o-mini       # modèle du juge (optionnel)
+MODEL=anthropic/claude-haiku-5.5     # modèle testé par agent.py (optionnel)
+```
+
+---
+
+## Usage
+
+Scanner un serveur MCP :
+
+```bash
+python scanner.py attacks/evil_envgrab.py
+```
+
+Vérifier les règles sur le jeu d'exemples (8 descriptions piégées / 8 saines) :
+
+```bash
+python test_rules.py
+```
+
+Lancer le benchmark contre un vrai modèle :
+
+```bash
+python agent.py
+```
 
 ---
 
