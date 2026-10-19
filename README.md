@@ -46,7 +46,10 @@ humain** (alertes déclenchées + raison du juge), qui garde la trace de ce qui 
 
 ## Comment la décision est prise
 
-Chaque description passe par deux détecteurs complémentaires :
+Chaque outil passe par deux détecteurs complémentaires, appliqués à **toute sa
+surface** — nom, description, et chaque paramètre (nom + description) : un piège
+peut se cacher dans la description d'un paramètre, pas seulement dans la
+description principale.
 
 1. **Les règles** (`rules.py`) — des motifs qui repèrent les signaux nets :
    chemins et fichiers sensibles (`.ssh`, `.env`, `credentials`), balises
@@ -146,9 +149,9 @@ python agent.py
 
 ## Limite assumée
 
-Le filtre juge la **description**, car c'est la seule chose que l'agent lit
-avant d'agir. Un piège logé dans le **code** de l'outil, derrière une
-description honnête, serait invisible à l'agent comme au filtre. Défendre contre
+Le filtre juge le **texte que l'agent lit** avant d'agir — nom, description et
+paramètres de l'outil. Un piège logé dans le **code** de l'outil, derrière un
+texte honnête, serait invisible à l'agent comme au filtre. Défendre contre
 ça demanderait un autre mécanisme (audit ou exécution en bac à sable). Le projet
 traite le tool poisoning **par la description**, qui est l'attaque documentée et
 la plus répandue.

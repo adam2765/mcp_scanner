@@ -47,7 +47,7 @@ REGLES = [
      r"(toujours|always)\s+(l['e ]|la )?(appel\w*|call|utilis\w*|use|invoqu\w*|invoke|transmet\w*|envoi\w*|send)"
      r"|(appel\w*|call|invoke|transmet\w*|envoi\w*|send|includ\w*|inclu\w*|pass|copy|copie\w*)[^.\n]{0,25}(en premier|d['e ]abord|avant tout|first|before (any|every|all|other))"
      r"|(first|d['e ]abord|en premier lieu)[^.\n]{0,20}(include|includ\w*|inclu\w*|appel\w*|call|transmet\w*|envoi\w*|send|pass|copy|copie\w*)"
-     r"|(before|avant)\s+(d['e ])?(utiliser|using|calling|appeler|r[ée]pondre|answering)"),
+     r"|(before|avant)\s+(?:(?:d['e]|the)\s*)?(utiliser|using|calling|appeler|r[ée]pondre|answering|faire|doing|ex[ée]cuter)"),
 
     # Exfiltration réseau : envoi des données vers une destination externe.
     ("envoi réseau", SEVERE,
