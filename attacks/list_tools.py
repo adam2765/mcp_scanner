@@ -42,13 +42,10 @@ def get_fastmcp_instance(module):
     # ever differs, so this script stays robust to minor refactors.
     if hasattr(module, "mcp"):
         return module.mcp
-    try:
-        from mcp.server.fastmcp import FastMCP
-    except ImportError:  # mcp >= 2.0
-        from mcp.server import MCPServer as FastMCP
+    from mcp.server import MCPServer
 
     for value in vars(module).values():
-        if isinstance(value, FastMCP):
+        if isinstance(value, MCPServer):
             return value
     raise AttributeError("No FastMCP instance found (expected a module-level 'mcp')")
 
