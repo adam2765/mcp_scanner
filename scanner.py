@@ -6,9 +6,10 @@ from client import get_tools
 from rules import check_rules_detail, SEVERE
 from judge import judge_tool  # adapte si c'est llm_judge dans ton repo
 
-# Jev (optionnel) : classifieur typé rapide en premier passage. Désactivé par
-# défaut -> comportement identique à avant tant que USE_JEV n'est pas mis.
-USE_JEV = os.environ.get("USE_JEV", "").strip().lower() in ("1", "true", "yes", "on")
+# Jev : classifieur typé rapide en premier passage. ACTIVÉ par défaut ;
+# mets USE_JEV=0 pour couper. Repli automatique sur le juge LLM si Jev est
+# injoignable, donc activer ne casse jamais un scan.
+USE_JEV = os.environ.get("USE_JEV", "1").strip().lower() in ("1", "true", "yes", "on")
 JEV_CONF_MIN = float(os.environ.get("JEV_CONF_MIN", "0.6"))
 
 
